@@ -6,20 +6,6 @@ const DIMENSIONS: u64 = 100;
 const INITIAL_STATE: u64 = 0xcbf2_9ce4_8422_2325;
 const PRIME: u64 = 0x0100_0000_01b3;
 
-// taken from: https://github.com/servo/rust-fnv/blob/main/lib.rs
-#[inline]
-#[must_use]
-pub const fn fnv_hash(bytes: &[u8]) -> u64 {
-    let mut hash = INITIAL_STATE;
-    let mut i = 0;
-    while i < bytes.len() {
-        hash ^= bytes[i] as u64;
-        hash = hash.wrapping_mul(PRIME);
-        i += 1;
-    }
-    hash
-}
-
 
 // struct EmbeddingEntry{
 //     vectors: [f32; DIMENSIONS],
@@ -33,17 +19,34 @@ pub struct PlaceHolderEntry{
 // Will currently take up 1.61 GB of memory (of raw vector-data)
 pub struct MinimalHashMap{
     entries: Box<[PlaceHolderEntry;ENTRIES as usize]>,
-    collisions_counter: u32
+    collisions_counter: u32,
+    seed_offset: u32,
 }
 
 impl MinimalHashMap{
-    pub fn new() -> Self{
+
+    // taken from: https://github.com/servo/rust-fnv/blob/main/lib.rs
+    #[inline]
+    #[must_use]
+    pub const fn fnv_hash(&self,bytes: &[u8]) -> u64 {
+        let mut hash = INITIAL_STATE + (self.seed_offset as u64);
+        let mut i = 0;
+        while i < bytes.len() {
+            hash ^= bytes[i] as u64;
+            hash = hash.wrapping_mul(PRIME);
+            i += 1;
+        }
+        hash
+    }
+
+
+    pub fn new(seed_offset:u32) -> Self{
         let placeholder = PlaceHolderEntry{is_full:false};
-        Self { entries: Box::new([placeholder;ENTRIES as usize]), collisions_counter: 0 }
+        Self { entries: Box::new([placeholder;ENTRIES as usize]), collisions_counter: 0,seed_offset:seed_offset }
     }
 
     pub fn insert(&mut self, word: &str){
-        let h = fnv_hash(&word.as_bytes());
+        let h = self.fnv_hash(&word.as_bytes());
         let ind = h % ENTRIES;
         // Check if
         if self.entries[ind as usize].is_full{
@@ -79,20 +82,21 @@ impl MinimalHashMap{
 
 
         let default_spacing_variance = score/(self.collisions_counter as f64);
+        let final_score = (default_spacing_variance - ideal_spacing).powi(2) + hole_chunks as f64;
 
-        let final_score = (default_spacing_variance - ideal_spacing).powi(3);
         final_score
-
     }
 
-    pub fn info(&self){
-        let col_perc = self.collisions_counter as f64/(ENTRIES as f64)*100.0;
-        println!("Collisions: {} (which is {:.6}% of total)",self.collisions_counter,col_perc);
+    pub fn info(&mut self){
+
+        // let col_perc = self.collisions_counter as f64/(ENTRIES as f64)*100.0;
+        // println!("Collisions: {} (which is {:.6}% of total)",self.collisions_counter,col_perc);
 
         let score_spread = self.score_spread();
-        println!("Spread-score: {:.5}",score_spread);
-        // I want also want to know how spread apart the "holes" are because better distribution => better for linear probing
+        // println!("Spread-score: {:.5}",score_spread);
+        println!("{}|{}|{:.5}|{:.5}",self.seed_offset,self.collisions_counter,score_spread,(self.collisions_counter as f64)+score_spread)
 
+        // I want also want to know how spread apart the "holes" are because better distribution => better for linear probing
     }
 
 }

@@ -72,10 +72,10 @@ impl Parser{
     }
 
 
-    fn insert_line(&mut self,line:&str){
+    fn insert_word(&mut self,word:&str){
 
-        let line_segments = line.split_once(" ").unwrap();
-        let word = line_segments.0;
+        // let line_segments = line.split_once(" ").unwrap();
+        // let word = line_segments.0;
 
         // let values = line_segments.1.split(" ").map(|x|{
         //     let i:f32 = x.parse().expect("Found corrupt value in file");
@@ -143,10 +143,10 @@ fn main() {
     let f = File::open("./English/en.vectors").expect("Download word2vec vectors under ./English/en.vectors");
     let mut reader = BufReader::new(f);
 
-    let hm = MinimalHashMap::new();
-    let mut parser = Parser::new(hm);
+    // let hm = MinimalHashMap::new();
+    // let mut parser = Parser::new(hm);
 
-    // TODO: make this max line length
+    // TODO: make this max line length (might incr performance, not sure)
     let mut line = String::new();
 
     let mut words:Vec<String> = vec![];
@@ -172,16 +172,28 @@ fn main() {
         Err(_)=>{}
     }}
 
-    // Testing seeds for least collisions and least chunks
-    loop{
-        
 
+    println!("[!] All words loaded into memory");
+
+
+    // Testing seeds for least collisions and least chunks
+    let mut seed_addition = 0;
+    println!("Seed|Collisions|Spread|Total");
+    loop{
+        let hm = MinimalHashMap::new(seed_addition);
+        let mut parser = Parser::new(hm);
+
+        // Test by looping over all words, injecting and getting info
+        for w in &words{
+            parser.insert_word(&w);
+        }
+
+        parser.map.info();
+        seed_addition += 1;
     }
 
     // parser.map.info();
-    println!("[!] All vecs loaded into memory");
 
-    thread::sleep(Duration::from_secs(10));
 
     // println!("[...] Writing Parser struct to binary file...");
 
