@@ -1,6 +1,7 @@
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::fs::File;
+use std::io::BufWriter;
 use std::thread;
 use std::time::Duration;
 use std::vec;
@@ -140,8 +141,12 @@ fn main() {
 
 
 
-    let f = File::open("./English/en.vectors").expect("Download word2vec vectors under ./English/en.vectors");
-    let mut reader = BufReader::new(f);
+    let f_read = File::open("./English/en.vectors").expect("Download word2vec vectors under ./English/en.vectors");
+    let mut reader = BufReader::new(f_read);
+
+    let f_write = File::options().create(true).write(true).open("./English/vecs.bin").unwrap();
+    let mut writer = BufWriter::new(f_write);
+
 
     // let hm = MinimalHashMap::new();
     // let mut parser = Parser::new(hm);
@@ -150,6 +155,8 @@ fn main() {
     let mut line = String::new();
 
     let mut words:Vec<String> = vec![];
+
+    // let mut counter = 0;
 
     let mut skipped_header = false;
     loop{
@@ -161,7 +168,25 @@ fn main() {
             // if line is still empty, asssume we are handling the first one and just skip
             if !skipped_header {skipped_header = true; line = String::from(""); continue}
 
-            let word = &line.trim().split_once(" ").unwrap().0;
+            let two_segments = &line.trim().split_once(" ").unwrap();
+            let word = two_segments.0;
+
+            let iter = two_segments.1.split(" ").map(|w|->f32{w.parse().unwrap()});
+
+            let null_byte = vec![0x0];
+
+            writer.write(word.as_bytes()).unwrap();
+            writer.write(&null_byte).unwrap();
+
+            for v in iter{
+                let b = v.to_be_bytes();
+                writer.write(&b).unwrap();
+            }
+
+            // counter += 1;
+            // if counter == 5{
+            //     break;
+            // }
 
             words.push(word.to_string());
             // parser.insert_line(&line.trim());
@@ -172,25 +197,27 @@ fn main() {
         Err(_)=>{}
     }}
 
+    println!("[!] Words read and written as binary");
 
-    println!("[!] All words loaded into memory");
+    writer.flush().unwrap();
+
 
 
     // Testing seeds for least collisions and least chunks
-    let mut seed_addition = 0;
-    println!("Seed|Collisions|Spread|Total");
-    loop{
-        let hm = MinimalHashMap::new(seed_addition);
-        let mut parser = Parser::new(hm);
+    // let mut seed_addition = 0;
+    // println!("Seed|Collisions|Spread|Total");
+    // loop{
+    //     let hm = MinimalHashMap::new(seed_addition);
+    //     let mut parser = Parser::new(hm);
 
-        // Test by looping over all words, injecting and getting info
-        for w in &words{
-            parser.insert_word(&w);
-        }
+    //     // Test by looping over all words, injecting and getting info
+    //     for w in &words{
+    //         parser.insert_word(&w);
+    //     }
 
-        parser.map.info();
-        seed_addition += 1;
-    }
+    //     parser.map.info();
+    //     seed_addition += 1;
+    // }
 
     // parser.map.info();
 

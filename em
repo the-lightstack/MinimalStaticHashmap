@@ -1,1 +1,1 @@
-/home/lars/Projects/Embeddings/target/debug/Embeddings
+./target/debug/Embeddings

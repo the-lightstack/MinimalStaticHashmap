@@ -98,5 +98,4 @@ impl MinimalHashMap{
 
         // I want also want to know how spread apart the "holes" are because better distribution => better for linear probing
     }
-
 }
