@@ -1,16 +1,13 @@
-use std::io::prelude::*;
-use std::io::BufReader;
+use std::collections::HashMap;
 use std::fs::File;
-use std::io::BufWriter;
-use std::thread;
-use std::time::Duration;
-use std::vec;
 // use std::mem::size_of;
 
+use crate::binparse::BinaryParser;
 use crate::hmap::MinimalHashMap;
-use crate::hmap::PlaceHolderEntry;
+use std::time::Instant;
 
 mod hmap;
+mod binparse;
 
 // struct Embedding{
 //     values: [f32;100], // probably way too precise, don't actually need mantissa and all that, just a sign bit and the rest can be "like" u8/u16 -> TODO
@@ -134,98 +131,95 @@ impl Parser{
 //
 
 fn main() {
-    let ph = PlaceHolderEntry{is_full:false};
-    let c = [ph;10];
 
-    println!("C entries: {:?}",c[1]);
+    // Reading in binary version
+    let mut bin_parse = BinaryParser{ map: HashMap::new()};
 
+    let input_file = File::open("./English/smart_vecs.bin").unwrap();
 
+    let now = Instant::now();
+    
 
-    let f_read = File::open("./English/en.vectors").expect("Download word2vec vectors under ./English/en.vectors");
-    let mut reader = BufReader::new(f_read);
-
-    let f_write = File::options().create(true).write(true).open("./English/vecs.bin").unwrap();
-    let mut writer = BufWriter::new(f_write);
-
-
-    // let hm = MinimalHashMap::new();
-    // let mut parser = Parser::new(hm);
-
-    // TODO: make this max line length (might incr performance, not sure)
-    let mut line = String::new();
-
-    let mut words:Vec<String> = vec![];
-
-    // let mut counter = 0;
-
-    let mut skipped_header = false;
-    loop{
-        match  reader.read_line(&mut line){
-            Ok(_len) =>{
-            // EOF
-            if _len == 0{break;}
-
-            // if line is still empty, asssume we are handling the first one and just skip
-            if !skipped_header {skipped_header = true; line = String::from(""); continue}
-
-            let two_segments = &line.trim().split_once(" ").unwrap();
-            let word = two_segments.0;
-
-            let iter = two_segments.1.split(" ").map(|w|->f32{w.parse().unwrap()});
-
-            let null_byte = vec![0x0];
-
-            writer.write(word.as_bytes()).unwrap();
-            writer.write(&null_byte).unwrap();
-
-            for v in iter{
-                let b = v.to_be_bytes();
-                writer.write(&b).unwrap();
-            }
-
-            // counter += 1;
-            // if counter == 5{
-            //     break;
-            // }
-
-            words.push(word.to_string());
-            // parser.insert_line(&line.trim());
-            // // let res = parser.parse_line(&line.trim());
-            // // parser.add_embedding(res);
-            line = String::from("");
-        },
-        Err(_)=>{}
-    }}
-
-    println!("[!] Words read and written as binary");
-
-    writer.flush().unwrap();
+    bin_parse.parse_file(&input_file);
+    let elapsed = now.elapsed();
+    println!("Loaded binary file in {:.2?}",elapsed);
 
 
 
-    // Testing seeds for least collisions and least chunks
-    // let mut seed_addition = 0;
-    // println!("Seed|Collisions|Spread|Total");
+
+
+
+
+
+
+    // let ph = PlaceHolderEntry{is_full:false};
+    // let c = [ph;10];
+
+    // println!("C entries: {:?}",c[1]);
+
+
+
+    // let f_read = File::open("./English/en.vectors").expect("Download word2vec vectors under ./English/en.vectors");
+    // let mut reader = BufReader::new(f_read);
+
+    // let f_write = File::options().create(true).write(true).open("./English/vecs.bin").unwrap();
+    // let mut writer = BufWriter::new(f_write);
+
+
+    // // let hm = MinimalHashMap::new();
+    // // let mut parser = Parser::new(hm);
+
+    // // TODO: make this max line length (might incr performance, not sure)
+    // let mut line = String::new();
+
+    // let mut words:Vec<String> = vec![];
+
+    // // let mut counter = 0;
+
+    // let mut skipped_header = false;
     // loop{
-    //     let hm = MinimalHashMap::new(seed_addition);
-    //     let mut parser = Parser::new(hm);
+    //     match  reader.read_line(&mut line){
+    //         Ok(_len) =>{
+    //         // EOF
+    //         if _len == 0{break;}
 
-    //     // Test by looping over all words, injecting and getting info
-    //     for w in &words{
-    //         parser.insert_word(&w);
-    //     }
+    //         // if line is still empty, asssume we are handling the first one and just skip
+    //         if !skipped_header {skipped_header = true; line = String::from(""); continue}
 
-    //     parser.map.info();
-    //     seed_addition += 1;
-    // }
+    //         let two_segments = &line.trim().split_once(" ").unwrap();
+    //         let word = two_segments.0;
 
-    // parser.map.info();
+    //         let iter = two_segments.1.split(" ").map(|w|->f32{w.parse().unwrap()});
+
+    //         let null_byte = vec![0x0];
+
+    //         writer.write(word.as_bytes()).unwrap();
+    //         writer.write(&null_byte).unwrap();
+
+    //         for v in iter{
+    //             let b = v.to_be_bytes();
+    //             writer.write(&b).unwrap();
+    //         }
+
+    //         // counter += 1;
+    //         // if counter == 5{
+    //         //     break;
+    //         // }
+
+    //         words.push(word.to_string());
+    //         // parser.insert_line(&line.trim());
+    //         // // let res = parser.parse_line(&line.trim());
+    //         // // parser.add_embedding(res);
+    //         line = String::from("");
+    //     },
+    //     Err(_)=>{}
+    // }}
+
+    // println!("[!] Words read and written as binary");
+
+    // writer.flush().unwrap();
 
 
-    // println!("[...] Writing Parser struct to binary file...");
-
-    // let f = File::open("./vectors.bin").expect("Want to write to binary file...");
-    // let writer = BufWriter::new(f);
 
 
     // let s = size_of::<Parser>();
@@ -238,8 +232,6 @@ fn main() {
 
     // parser.print_sim("france", "germany");
     // parser.print_sim("france", "china");
-
-    // thread::sleep(Duration::from_secs(30));
 
 
 }
